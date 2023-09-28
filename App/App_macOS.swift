@@ -78,6 +78,30 @@ struct Kiwix: App {
     }
 }
 
+// TODO: delete this ?
+class LoadTab {
+    init(nav: NavigationViewModel) {
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("openURL"), object: nil, queue: nil
+        ) { notification in
+            
+            guard let url = notification.userInfo?["url"] as? URL else { return }
+            let inNewTab = notification.userInfo?["inNewTab"] as? Bool ?? false
+            
+            if !inNewTab, case let .tab(tabID) = nav.currentItem {
+                print("debug: load")
+                
+                BrowserViewModel.getCached(tabID: tabID).load(url: url) // ca ?
+            } else {
+                print("debug: create")
+                
+                let tabID = nav.createTab()
+                BrowserViewModel.getCached(tabID: tabID).load(url: url)
+            }
+        }
+    }
+}
+
 struct RootView: View {
     @Environment(\.controlActiveState) var controlActiveState
     @StateObject private var browser = BrowserViewModel()
@@ -86,13 +110,20 @@ struct RootView: View {
     private let primaryItems: [NavigationItem] = [.reading, .bookmarks]
     private let libraryItems: [NavigationItem] = [.opened, .categories, .downloads, .new]
     private let openURL = NotificationCenter.default.publisher(for: .openURL)
-    
+ 
+    init() {
+        LoadTab(nav: navigation)
+    }
+
     var body: some View {
         NavigationView {
             List(selection: $navigation.currentItem) {
                 ForEach(primaryItems, id: \.self) { navigationItem in
                     Label(navigationItem.name, systemImage: navigationItem.icon)
                 }
+                
+                TabManagerMacOS()
+                
                 Section("Library") {
                     ForEach(libraryItems, id: \.self) { navigationItem in
                         Label(navigationItem.name, systemImage: navigationItem.icon)
